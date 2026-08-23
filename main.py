@@ -281,14 +281,24 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
             cell_right = int(round(left + (c + 1) * cw))
             cell_bottom = int(round(grid_top + (r + 1) * cell_h))
 
+            matching_anniversaries = []
+            if anniversaries:
+                matching_anniversaries = [
+                    a for a in anniversaries
+                    if (month, day) == (a["month"], a["day"])
+                ]
+
             # 祝日名
             holiday_name = holiday_map.get((month, day))
+            holiday_label_img = None
+            holiday_label_y = None
             if holiday_name and holiday_labels:
-                label_img = holiday_labels.get(holiday_name)
-                if label_img is not None:
+                holiday_label_img = holiday_labels.get(holiday_name)
+                if holiday_label_img is not None:
                     lx = cell_left + 6
-                    ly = cell_top + 46
-                    canvas.alpha_composite(label_img, (lx, ly))
+                    # 上寄せにして、同日に「うちのこ記念日」があっても重なりにくくする
+                    holiday_label_y = cell_top + 24
+                    canvas.alpha_composite(holiday_label_img, (lx, holiday_label_y))
 
             cat_event = CAT_DAYS.get((month, day))
             if cat_event:
@@ -317,13 +327,6 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                         canvas.alpha_composite(label_img, (lx, ly))
 
             # うちのこ記念日（ユーザー指定・最大3件）
-            matching_anniversaries = []
-            if anniversaries:
-                matching_anniversaries = [
-                    a for a in anniversaries
-                    if (month, day) == (a["month"], a["day"])
-                ]
-
             if matching_anniversaries:
                 if anniversary_heart is not None:
                     # ハートは右上。日付数字は左上なので干渉しにくい。
@@ -335,10 +338,21 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                 date_key = (month, day)
                 label_img = anniversary_labels.get(date_key) if anniversary_labels else None
                 if label_img is not None:
-                    # 猫記念日と同じ日は、猫記念日名の1段上に表示する。
-                    extra = 28 if cat_event else 0
                     ax = cell_left + ((cell_right - cell_left) - label_img.width) // 2
-                    ay = cell_bottom - label_img.height - 4 - extra
+
+                    # 既定位置はセル下寄せ。
+                    ay = cell_bottom - label_img.height - 4
+
+                    # 猫記念日と同じ日は、猫記念日名の1段上に表示する。
+                    if cat_event:
+                        ay -= 28
+
+                    # 祝日と同じ日は、祝日名の下に十分な余白を確保する。
+                    if holiday_label_img is not None and holiday_label_y is not None:
+                        min_ay = holiday_label_y + holiday_label_img.height + 6
+                        max_ay = cell_bottom - label_img.height - 2
+                        ay = min(max(ay, min_ay), max_ay)
+
                     canvas.alpha_composite(label_img, (ax, ay))
 
     if logo:
