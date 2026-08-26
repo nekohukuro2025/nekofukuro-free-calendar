@@ -212,7 +212,7 @@ def center_text(draw, y, text, font, fill):
     b = draw.textbbox((0, 0), text, font=font)
     draw.text(((W - (b[2]-b[0])) / 2, y), text, font=font, fill=fill)
 
-def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_icon=None, cat_labels=None, holiday_labels=None, anniversaries=None, anniversary_labels=None, anniversary_heart=None):
+def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_icon=None, cat_labels=None, holiday_labels=None, anniversaries=None, anniversary_labels=None):
     canvas = Image.new("RGBA", (W, H), (250, 248, 244, 255))
     d = ImageDraw.Draw(canvas)
 
@@ -333,43 +333,44 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
 
             # うちのこ記念日（ユーザー指定・最大3件）
             if matching_anniversaries:
-                if anniversary_heart is not None:
-                    # ハートは右上。日付数字は左上なので干渉しにくい。
-                    hx = cell_right - anniversary_heart.width - 4
-                    hy = cell_top + 5
-                    canvas.alpha_composite(anniversary_heart, (hx, hy))
-
                 # 同じ日付に複数ある場合は1行にまとめる。
                 date_key = (month, day)
                 label_img = anniversary_labels.get(date_key) if anniversary_labels else None
                 if label_img is not None:
-                    # 6週表示などセルが低い月でも収まるよう、
-                    # 必要に応じて記念日文字を自動縮小する。
                     available_w = max(70, int((cell_right - cell_left) - 8))
                     max_anniv_h = 18 if cell_h < 85 else 22
 
+                    # 祝日・猫記念日との重なりを避けるため、
+                    # 置ける縦幅の中で必要に応じてだけ縮小する。
+                    top_reserved = 0
+                    if holiday_label_img is not None and holiday_label_y is not None:
+                        top_reserved = holiday_label_y + holiday_label_img.height + 4
+                    else:
+                        top_reserved = cell_top + 28
+
+                    bottom_reserved = cell_bottom - 3
+                    if cat_event and cat_labels:
+                        cat_label_img = cat_labels.get(cat_event)
+                        if cat_label_img is not None:
+                            bottom_reserved = cell_bottom - cat_label_img.height - 7
+
+                    available_h = max(10, bottom_reserved - top_reserved)
+
                     scale = min(
                         available_w / label_img.width,
+                        available_h / label_img.height,
                         max_anniv_h / label_img.height,
                         1.0
                     )
                     aw = max(1, int(round(label_img.width * scale)))
                     ah = max(1, int(round(label_img.height * scale)))
-                    compact_anniv = label_img.resize(
-                        (aw, ah), Image.Resampling.LANCZOS
-                    )
+                    compact_anniv = label_img.resize((aw, ah), Image.Resampling.LANCZOS)
 
                     ax = cell_left + ((cell_right - cell_left) - compact_anniv.width) // 2
+                    ay = bottom_reserved - compact_anniv.height
+                    if ay < top_reserved:
+                        ay = top_reserved
 
-                    # 基本はセル下部に配置。
-                    ay = cell_bottom - compact_anniv.height - 3
-
-                    # 猫記念日と同じ日は、猫記念日名の上へ。
-                    if cat_event:
-                        ay -= 25
-
-                    # 祝日と同じ日は、祝日名を日付横へ逃がしているため
-                    # うちのこ記念日は下部をそのまま使う。
                     canvas.alpha_composite(compact_anniv, (ax, ay))
 
     if logo:
@@ -503,11 +504,11 @@ async def make_all(event):
         anniversaries.append({
             "month": anniv_month,
             "day": anniv_day,
-            "text": anniv_text[:12],
+            "text": anniv_text[:15],
         })
 
     # 同じ日付に複数の記念日を設定した場合、
-    # 「・」を含めて1マス合計12文字まで。
+    # 「・」を含めて1マス合計15文字まで。
     anniv_by_date = {}
     for anniv in anniversaries:
         key = (anniv["month"], anniv["day"])
@@ -515,11 +516,11 @@ async def make_all(event):
 
     for (m, d), texts in anniv_by_date.items():
         combined = "・".join(texts)
-        if len(combined) > 12:
+        if len(combined) > 15:
             status.innerText = (
-                "同じ日付の記念日の文字数が12文字を超えています。"
+                "同じ日付の記念日の文字数が15文字を超えています。"
                 f"{m}月{d}日：現在 {len(combined)}文字です。"
-                "「・」を含めて12文字以内にしてください。"
+                "「・」を含めて15文字以内にしてください。"
             )
             status.style.color = "#c62828"
             status.style.fontWeight = "700"
@@ -564,7 +565,6 @@ async def make_all(event):
         holiday_labels[label] = trim_transparent_padding(holiday_img, padding=1)
 
     anniversary_labels = {}
-    anniversary_heart = None
 
     if anniversaries:
         # 同じ日付に複数ある場合は「・」でまとめる。
@@ -574,14 +574,10 @@ async def make_all(event):
             by_date.setdefault(key, []).append(anniv["text"])
 
         for key, texts in by_date.items():
-            combined = "・".join(texts)[:12]
+            combined = "・".join(texts)[:15]
             anniversary_labels[key] = await render_browser_label(
                 combined, 142, 22, 15, "#b64f68"
             )
-
-        anniversary_heart = await render_browser_label(
-            "♥", 26, 26, 21, "#d85f7b"
-        )
 
     try:
         for month in range(1, 13):
@@ -604,8 +600,7 @@ async def make_all(event):
                 cat_labels=cat_labels,
                 holiday_labels=holiday_labels,
                 anniversaries=anniversaries,
-                anniversary_labels=anniversary_labels,
-                anniversary_heart=anniversary_heart
+                anniversary_labels=anniversary_labels
             )
 
             jpeg_bytes = image_to_jpeg_bytes(result)
