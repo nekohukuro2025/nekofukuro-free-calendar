@@ -531,9 +531,9 @@ async def make_all(event):
         combined = "・".join(texts)
         if len(combined) > 15:
             status.innerText = (
-                f"{m}月{d}日のうちのこ記念日は、"
-                f"「・」を含めて15文字以内にしてください。"
-                f"（現在 {len(combined)}文字）"
+                "同じ日付の記念日の文字数が15文字を超えています。"
+                f"{m}月{d}日：現在 {len(combined)}文字です。"
+                "「・」を含めて15文字以内にしてください。"
             )
             return
 
