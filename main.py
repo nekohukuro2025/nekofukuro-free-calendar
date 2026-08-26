@@ -299,10 +299,17 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                 if holiday_label_img is not None:
                     if matching_anniversaries:
                         # 祝日 + うちのこ記念日が同日の場合:
-                        # 祝日名を日付数字の右側に小さく置き、
-                        # セル下部をうちのこ記念日のために空ける。
-                        max_w = max(54, int((cell_right - cell_left) - 58))
-                        max_h = 16
+                        # 祝日名を日付数字の右側に小さく置くが、
+                        # 右上のハートと重ならないように
+                        # ハート分の横幅を先に予約してから縮小配置する。
+                        left_start = cell_left + 50
+                        right_reserve = 0
+                        if anniversary_heart is not None:
+                            right_reserve = anniversary_heart.width + 18
+
+                        available_right = cell_right - right_reserve
+                        max_w = max(28, int(available_right - left_start))
+                        max_h = 14
 
                         scale = min(
                             max_w / holiday_label_img.width,
@@ -315,8 +322,8 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                             (hw, hh), Image.Resampling.LANCZOS
                         )
 
-                        lx = cell_left + 50
-                        holiday_label_y = cell_top + 14
+                        lx = left_start
+                        holiday_label_y = cell_top + 16
                         canvas.alpha_composite(
                             compact_holiday,
                             (lx, holiday_label_y)
@@ -535,6 +542,8 @@ async def make_all(event):
                 f"{m}月{d}日：現在 {len(combined)}文字です。"
                 "「・」を含めて15文字以内にしてください。"
             )
+            status.style.color = "#c62828"
+            status.style.fontWeight = "700"
             return
 
     photos = window.selectedPhotos
@@ -544,6 +553,9 @@ async def make_all(event):
         if photos[i] is None:
             status.innerText = f"{i+1}月の写真がありません。"
             return
+
+    status.style.color = ""
+    status.style.fontWeight = ""
 
     btn.disabled = True
     progress.style.display = "block"
