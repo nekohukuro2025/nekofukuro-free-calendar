@@ -580,7 +580,7 @@ document.addEventListener("DOMContentLoaded", () => {
   <section class="panel">
     <h2>うちのこ記念日 <span style="font-size:14px;color:#777;font-weight:500;">（任意・最大3件）</span></h2>
     <div class="note" style="margin-bottom:12px;">
-      多頭飼いにも対応できるよう、最大3件まで設定できます。使わない欄は「設定しない」のままで構いません。
+      最大3件まで設定できます。使わない欄は「設定しない」のままで構いません。
     </div>
     <div style="font-weight:700;margin:8px 0 6px;">記念日 1</div>
     <div class="row">
@@ -591,7 +591,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <select id="anniv_day_1" aria-label="記念日1の日" disabled>
         <option value="">日</option>
       </select>
-      <input id="anniv_text_1" type="text" maxlength="18"
+      <input id="anniv_text_1" type="text" maxlength="15"
              placeholder="例：ミュー誕生日" aria-label="記念日1の内容" disabled>
     </div>
 
@@ -604,7 +604,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <select id="anniv_day_2" aria-label="記念日2の日" disabled>
         <option value="">日</option>
       </select>
-      <input id="anniv_text_2" type="text" maxlength="18"
+      <input id="anniv_text_2" type="text" maxlength="15"
              placeholder="例：たまちゃんお迎え日" aria-label="記念日2の内容" disabled>
     </div>
 
@@ -617,12 +617,12 @@ document.addEventListener("DOMContentLoaded", () => {
       <select id="anniv_day_3" aria-label="記念日3の日" disabled>
         <option value="">日</option>
       </select>
-      <input id="anniv_text_3" type="text" maxlength="18"
+      <input id="anniv_text_3" type="text" maxlength="15"
              placeholder="例：くろちゃん誕生日" aria-label="記念日3の内容" disabled>
     </div>
 
     <div class="note" style="margin-top:12px;">
-      指定した日付欄にハートマークと記念日の内容を表示します。同じ日付に複数設定した場合は、内容をまとめて表示します。
+      指定した日付欄にハートマークと記念日の内容を表示します。同じ日付に複数設定した場合は、内容を「・」でまとめて表示します。1マスに表示できる記念日名は「・」を含めて合計15文字までです。
     </div>
   </section>
 

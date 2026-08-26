@@ -292,13 +292,45 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
             holiday_name = holiday_map.get((month, day))
             holiday_label_img = None
             holiday_label_y = None
+
             if holiday_name and holiday_labels:
                 holiday_label_img = holiday_labels.get(holiday_name)
+
                 if holiday_label_img is not None:
-                    lx = cell_left + 6
-                    # 上寄せにして、同日に「うちのこ記念日」があっても重なりにくくする
-                    holiday_label_y = cell_top + 24
-                    canvas.alpha_composite(holiday_label_img, (lx, holiday_label_y))
+                    if matching_anniversaries:
+                        # 祝日 + うちのこ記念日が同日の場合:
+                        # 祝日名を日付数字の右側に小さく置き、
+                        # セル下部をうちのこ記念日のために空ける。
+                        max_w = max(54, int((cell_right - cell_left) - 58))
+                        max_h = 16
+
+                        scale = min(
+                            max_w / holiday_label_img.width,
+                            max_h / holiday_label_img.height,
+                            1.0
+                        )
+                        hw = max(1, int(round(holiday_label_img.width * scale)))
+                        hh = max(1, int(round(holiday_label_img.height * scale)))
+                        compact_holiday = holiday_label_img.resize(
+                            (hw, hh), Image.Resampling.LANCZOS
+                        )
+
+                        lx = cell_left + 50
+                        holiday_label_y = cell_top + 14
+                        canvas.alpha_composite(
+                            compact_holiday,
+                            (lx, holiday_label_y)
+                        )
+                        holiday_label_img = compact_holiday
+
+                    else:
+                        # 通常の祝日は従来どおり
+                        lx = cell_left + 6
+                        holiday_label_y = cell_top + 46
+                        canvas.alpha_composite(
+                            holiday_label_img,
+                            (lx, holiday_label_y)
+                        )
 
             cat_event = CAT_DAYS.get((month, day))
             if cat_event:
@@ -338,22 +370,34 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                 date_key = (month, day)
                 label_img = anniversary_labels.get(date_key) if anniversary_labels else None
                 if label_img is not None:
-                    ax = cell_left + ((cell_right - cell_left) - label_img.width) // 2
+                    # 6週表示などセルが低い月でも収まるよう、
+                    # 必要に応じて記念日文字を自動縮小する。
+                    available_w = max(70, int((cell_right - cell_left) - 8))
+                    max_anniv_h = 18 if cell_h < 85 else 22
 
-                    # 既定位置はセル下寄せ。
-                    ay = cell_bottom - label_img.height - 4
+                    scale = min(
+                        available_w / label_img.width,
+                        max_anniv_h / label_img.height,
+                        1.0
+                    )
+                    aw = max(1, int(round(label_img.width * scale)))
+                    ah = max(1, int(round(label_img.height * scale)))
+                    compact_anniv = label_img.resize(
+                        (aw, ah), Image.Resampling.LANCZOS
+                    )
 
-                    # 猫記念日と同じ日は、猫記念日名の1段上に表示する。
+                    ax = cell_left + ((cell_right - cell_left) - compact_anniv.width) // 2
+
+                    # 基本はセル下部に配置。
+                    ay = cell_bottom - compact_anniv.height - 3
+
+                    # 猫記念日と同じ日は、猫記念日名の上へ。
                     if cat_event:
-                        ay -= 28
+                        ay -= 25
 
-                    # 祝日と同じ日は、祝日名の下に十分な余白を確保する。
-                    if holiday_label_img is not None and holiday_label_y is not None:
-                        min_ay = holiday_label_y + holiday_label_img.height + 6
-                        max_ay = cell_bottom - label_img.height - 2
-                        ay = min(max(ay, min_ay), max_ay)
-
-                    canvas.alpha_composite(label_img, (ax, ay))
+                    # 祝日と同じ日は、祝日名を日付横へ逃がしているため
+                    # うちのこ記念日は下部をそのまま使う。
+                    canvas.alpha_composite(compact_anniv, (ax, ay))
 
     if logo:
         # 日付領域から離して、最下部中央に小さく配置
@@ -473,8 +517,25 @@ async def make_all(event):
         anniversaries.append({
             "month": anniv_month,
             "day": anniv_day,
-            "text": anniv_text[:18],
+            "text": anniv_text[:15],
         })
+
+    # 同じ日付に複数の記念日を設定した場合、
+    # 「・」を含めて1マス合計15文字まで。
+    anniv_by_date = {}
+    for anniv in anniversaries:
+        key = (anniv["month"], anniv["day"])
+        anniv_by_date.setdefault(key, []).append(anniv["text"])
+
+    for (m, d), texts in anniv_by_date.items():
+        combined = "・".join(texts)
+        if len(combined) > 15:
+            status.innerText = (
+                f"{m}月{d}日のうちのこ記念日は、"
+                f"「・」を含めて15文字以内にしてください。"
+                f"（現在 {len(combined)}文字）"
+            )
+            return
 
     photos = window.selectedPhotos
     adjustments = window.photoAdjustments
@@ -521,7 +582,7 @@ async def make_all(event):
             by_date.setdefault(key, []).append(anniv["text"])
 
         for key, texts in by_date.items():
-            combined = "・".join(texts)
+            combined = "・".join(texts)[:15]
             anniversary_labels[key] = await render_browser_label(
                 combined, 142, 22, 15, "#b64f68"
             )
