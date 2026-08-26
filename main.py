@@ -89,17 +89,6 @@ OFFICIAL_HOLIDAYS = {
 }
 
 
-HOLIDAY_WRAP_MAP = {
-    "憲法記念日": "憲法\n記念日",
-    "みどりの日": "みどりの\n日",
-    "こどもの日": "こどもの\n日",
-    "建国記念の日": "建国記念の\n日",
-    "勤労感謝の日": "勤労感謝の\n日",
-    "スポーツの日": "スポーツの\n日",
-    "国民の休日": "国民の\n休日",
-    "振替休日": "振替\n休日",
-}
-
 
 
 def nth_weekday(year, month, weekday, nth):
@@ -223,7 +212,7 @@ def center_text(draw, y, text, font, fill):
     b = draw.textbbox((0, 0), text, font=font)
     draw.text(((W - (b[2]-b[0])) / 2, y), text, font=font, fill=fill)
 
-def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_icon=None, cat_labels=None, holiday_labels=None, holiday_overlap_labels=None, anniversaries=None, anniversary_labels=None, anniversary_heart=None):
+def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_icon=None, cat_labels=None, holiday_labels=None, anniversaries=None, anniversary_labels=None, anniversary_heart=None):
     canvas = Image.new("RGBA", (W, H), (250, 248, 244, 255))
     d = ImageDraw.Draw(canvas)
 
@@ -301,54 +290,20 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                 ]
 
             # 祝日名
+            # うちのこ記念日が同じ日でも、通常時と同じ大きさ・配置で表示する。
             holiday_name = holiday_map.get((month, day))
             holiday_label_img = None
             holiday_label_y = None
 
             if holiday_name and holiday_labels:
                 holiday_label_img = holiday_labels.get(holiday_name)
-
                 if holiday_label_img is not None:
-                    if matching_anniversaries:
-                        # 祝日 + うちのこ記念日が同日の場合は、
-                        # 祝日名を折り返し表示にして、
-                        # 通常サイズをできるだけ維持したままハートと干渉しないようにする。
-                        overlap_img = None
-                        if holiday_overlap_labels:
-                            overlap_img = holiday_overlap_labels.get(holiday_name)
-                        if overlap_img is None:
-                            overlap_img = holiday_label_img
-
-                        left_start = cell_left + 42
-                        right_reserve = 0
-                        if anniversary_heart is not None:
-                            right_reserve = anniversary_heart.width + 10
-
-                        available_right = cell_right - right_reserve
-                        max_w = max(36, int(available_right - left_start))
-                        max_h = 34
-
-                        hw = overlap_img.width
-                        hh = overlap_img.height
-                        if hw > max_w or hh > max_h:
-                            scale = min(max_w / hw, max_h / hh, 1.0)
-                            hw = max(1, int(round(hw * scale)))
-                            hh = max(1, int(round(hh * scale)))
-                            overlap_img = overlap_img.resize((hw, hh), Image.Resampling.LANCZOS)
-
-                        lx = left_start
-                        holiday_label_y = cell_top + 7
-                        canvas.alpha_composite(overlap_img, (lx, holiday_label_y))
-                        holiday_label_img = overlap_img
-
-                    else:
-                        # 通常の祝日は従来どおり
-                        lx = cell_left + 6
-                        holiday_label_y = cell_top + 46
-                        canvas.alpha_composite(
-                            holiday_label_img,
-                            (lx, holiday_label_y)
-                        )
+                    lx = cell_left + 6
+                    holiday_label_y = cell_top + 46
+                    canvas.alpha_composite(
+                        holiday_label_img,
+                        (lx, holiday_label_y)
+                    )
 
             cat_event = CAT_DAYS.get((month, day))
             if cat_event:
@@ -380,7 +335,7 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
             if matching_anniversaries:
                 if anniversary_heart is not None:
                     # ハートは右上。日付数字は左上なので干渉しにくい。
-                    hx = cell_right - anniversary_heart.width - 7
+                    hx = cell_right - anniversary_heart.width - 4
                     hy = cell_top + 5
                     canvas.alpha_composite(anniversary_heart, (hx, hy))
 
@@ -548,11 +503,11 @@ async def make_all(event):
         anniversaries.append({
             "month": anniv_month,
             "day": anniv_day,
-            "text": anniv_text[:15],
+            "text": anniv_text[:12],
         })
 
     # 同じ日付に複数の記念日を設定した場合、
-    # 「・」を含めて1マス合計15文字まで。
+    # 「・」を含めて1マス合計12文字まで。
     anniv_by_date = {}
     for anniv in anniversaries:
         key = (anniv["month"], anniv["day"])
@@ -560,11 +515,11 @@ async def make_all(event):
 
     for (m, d), texts in anniv_by_date.items():
         combined = "・".join(texts)
-        if len(combined) > 15:
+        if len(combined) > 12:
             status.innerText = (
-                "同じ日付の記念日の文字数が15文字を超えています。"
+                "同じ日付の記念日の文字数が12文字を超えています。"
                 f"{m}月{d}日：現在 {len(combined)}文字です。"
-                "「・」を含めて15文字以内にしてください。"
+                "「・」を含めて12文字以内にしてください。"
             )
             status.style.color = "#c62828"
             status.style.fontWeight = "700"
@@ -602,18 +557,11 @@ async def make_all(event):
 
     holiday_map_for_year = japanese_holidays(year)
     holiday_labels = {}
-    holiday_overlap_labels = {}
     for label in set(holiday_map_for_year.values()):
         holiday_img = await render_browser_label(
             label, 150, 24, 16, "#b92d2d"
         )
         holiday_labels[label] = trim_transparent_padding(holiday_img, padding=1)
-
-        overlap_text = HOLIDAY_WRAP_MAP.get(label, label)
-        overlap_img = await render_browser_label(
-            overlap_text, 92, 34, 16, "#b92d2d"
-        )
-        holiday_overlap_labels[label] = trim_transparent_padding(overlap_img, padding=1)
 
     anniversary_labels = {}
     anniversary_heart = None
@@ -626,13 +574,13 @@ async def make_all(event):
             by_date.setdefault(key, []).append(anniv["text"])
 
         for key, texts in by_date.items():
-            combined = "・".join(texts)[:15]
+            combined = "・".join(texts)[:12]
             anniversary_labels[key] = await render_browser_label(
                 combined, 142, 22, 15, "#b64f68"
             )
 
         anniversary_heart = await render_browser_label(
-            "♥", 38, 38, 32, "#d85f7b"
+            "♥", 26, 26, 21, "#d85f7b"
         )
 
     try:
@@ -655,7 +603,6 @@ async def make_all(event):
                 cat_icon=cat_icon,
                 cat_labels=cat_labels,
                 holiday_labels=holiday_labels,
-                holiday_overlap_labels=holiday_overlap_labels,
                 anniversaries=anniversaries,
                 anniversary_labels=anniversary_labels,
                 anniversary_heart=anniversary_heart
