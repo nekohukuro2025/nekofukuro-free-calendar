@@ -309,7 +309,7 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
 
                         available_right = cell_right - right_reserve
                         max_w = max(28, int(available_right - left_start))
-                        max_h = 14
+                        max_h = 16
 
                         scale = min(
                             max_w / holiday_label_img.width,
@@ -425,6 +425,19 @@ async def render_browser_label(text, width, height, font_px, color):
     )
     raw = base64.b64decode(str(data_url).split(",", 1)[1])
     return Image.open(BytesIO(raw)).convert("RGBA")
+
+
+def trim_transparent_padding(img, padding=0):
+    alpha = img.getchannel("A")
+    bbox = alpha.getbbox()
+    if not bbox:
+        return img
+    left, top, right, bottom = bbox
+    left = max(0, left - padding)
+    top = max(0, top - padding)
+    right = min(img.width, right + padding)
+    bottom = min(img.height, bottom + padding)
+    return img.crop((left, top, right, bottom))
 
 async def load_cat_day_icon():
     try:
@@ -579,9 +592,10 @@ async def make_all(event):
     holiday_map_for_year = japanese_holidays(year)
     holiday_labels = {}
     for label in set(holiday_map_for_year.values()):
-        holiday_labels[label] = await render_browser_label(
-            label, 138, 22, 15, "#b92d2d"
+        holiday_img = await render_browser_label(
+            label, 150, 24, 16, "#b92d2d"
         )
+        holiday_labels[label] = trim_transparent_padding(holiday_img, padding=1)
 
     anniversary_labels = {}
     anniversary_heart = None
