@@ -375,8 +375,8 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                     if label_img is not None:
                         # 祝日名は通常位置・通常サイズのまま維持。
                         # 記念日は右上へ折り返して表示する。
-                        ax = cell_right - label_img.width - 6
-                        ay = cell_top + 4
+                        ax = cell_right - label_img.width - 4
+                        ay = cell_top + 2
                         canvas.alpha_composite(label_img, (ax, ay))
 
                 # 2) 猫記念日と同日
@@ -388,8 +388,8 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                     if label_img is not None:
                         # 猫記念日名は下部のまま維持し、
                         # うちのこ記念日は右上へ折り返して表示する。
-                        ax = cell_right - label_img.width - 6
-                        ay = cell_top + 4
+                        ax = cell_right - label_img.width - 4
+                        ay = cell_top + 2
                         canvas.alpha_composite(label_img, (ax, ay))
 
                 # 3) 通常日
@@ -618,20 +618,20 @@ async def make_all(event):
                 wrapped_normal, 142, 38, 15, "#b64f68"
             )
 
-            # 祝日と同日：右上に最大4文字程度で3行まで折り返し。
+            # 祝日と同日：2行で折り返し、文字を大きめに表示。
             wrapped_holiday = wrap_anniversary_text(
-                combined, max_chars=4, max_lines=3
+                combined, max_chars=8, max_lines=2
             )
             anniversary_holiday_labels[key] = await render_browser_label(
-                wrapped_holiday, 84, 42, 14, "#b64f68"
+                wrapped_holiday, 98, 38, 15, "#b64f68"
             )
 
-            # 猫記念日と同日：右上に最大4文字程度で3行まで折り返し。
+            # 猫記念日と同日も2行で折り返し、文字を大きめに表示。
             wrapped_catday = wrap_anniversary_text(
-                combined, max_chars=4, max_lines=3
+                combined, max_chars=8, max_lines=2
             )
             anniversary_catday_labels[key] = await render_browser_label(
-                wrapped_catday, 84, 42, 14, "#b64f68"
+                wrapped_catday, 98, 38, 15, "#b64f68"
             )
 
     try:
