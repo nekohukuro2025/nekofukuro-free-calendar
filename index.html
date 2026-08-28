@@ -356,8 +356,46 @@ function updateAnniversaryDays(slot) {
   }
 }
 
+function updateAnniversaryDateAvailability() {
+  const slots = [1, 2, 3];
+
+  slots.forEach(slot => {
+    const monthEl = document.getElementById(`anniv_month_${slot}`);
+    const dayEl = document.getElementById(`anniv_day_${slot}`);
+    if (!monthEl || !dayEl) return;
+
+    const month = Number(monthEl.value);
+    if (!month) return;
+
+    // 他の記念日ですでに選ばれている日付を取得
+    const usedDates = new Set();
+    slots.forEach(otherSlot => {
+      if (otherSlot === slot) return;
+
+      const otherMonth = Number(
+        document.getElementById(`anniv_month_${otherSlot}`).value
+      );
+      const otherDay = Number(
+        document.getElementById(`anniv_day_${otherSlot}`).value
+      );
+
+      if (otherMonth && otherDay) {
+        usedDates.add(`${otherMonth}-${otherDay}`);
+      }
+    });
+
+    // 同じ月の使用済み日は選択不可にする
+    Array.from(dayEl.options).forEach(opt => {
+      if (!opt.value) return;
+      const key = `${month}-${Number(opt.value)}`;
+      opt.disabled = usedDates.has(key);
+    });
+  });
+}
+
 function updateAllAnniversaryDays() {
   [1, 2, 3].forEach(updateAnniversaryDays);
+  updateAnniversaryDateAvailability();
 }
 
 function clearResults() {
@@ -411,8 +449,14 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById(`anniv_month_${slot}`).addEventListener("change", () => {
       clearResults();
       updateAnniversaryDays(slot);
+      updateAnniversaryDateAvailability();
     });
-    document.getElementById(`anniv_day_${slot}`).addEventListener("change", clearResults);
+
+    document.getElementById(`anniv_day_${slot}`).addEventListener("change", () => {
+      clearResults();
+      updateAnniversaryDateAvailability();
+    });
+
     document.getElementById(`anniv_text_${slot}`).addEventListener("input", clearResults);
   });
 
@@ -595,7 +639,7 @@ document.addEventListener("DOMContentLoaded", () => {
   <section class="panel">
     <h2>うちのこ記念日 <span style="font-size:14px;color:#777;font-weight:500;">（任意・最大3件）</span></h2>
     <div class="note" style="margin-bottom:12px;">
-      最大3件まで設定できます。使わない欄は「設定しない」のままで構いません。
+      最大3件まで設定できます。3件はそれぞれ別の日付を選んでください。使わない欄は「設定しない」のままで構いません。
     </div>
     <div style="font-weight:700;margin:8px 0 6px;">記念日 1</div>
     <div class="row">
@@ -606,7 +650,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <select id="anniv_day_1" aria-label="記念日1の日" disabled>
         <option value="">日</option>
       </select>
-      <input id="anniv_text_1" type="text" maxlength="15"
+      <input id="anniv_text_1" type="text" maxlength="8"
              placeholder="例：ミュー誕生日" aria-label="記念日1の内容" disabled>
     </div>
 
@@ -619,8 +663,8 @@ document.addEventListener("DOMContentLoaded", () => {
       <select id="anniv_day_2" aria-label="記念日2の日" disabled>
         <option value="">日</option>
       </select>
-      <input id="anniv_text_2" type="text" maxlength="15"
-             placeholder="例：たまちゃんお迎え日" aria-label="記念日2の内容" disabled>
+      <input id="anniv_text_2" type="text" maxlength="8"
+             placeholder="例：たまお迎え日" aria-label="記念日2の内容" disabled>
     </div>
 
     <div style="font-weight:700;margin:14px 0 6px;">記念日 3</div>
@@ -632,12 +676,12 @@ document.addEventListener("DOMContentLoaded", () => {
       <select id="anniv_day_3" aria-label="記念日3の日" disabled>
         <option value="">日</option>
       </select>
-      <input id="anniv_text_3" type="text" maxlength="15"
+      <input id="anniv_text_3" type="text" maxlength="8"
              placeholder="例：くろちゃん誕生日" aria-label="記念日3の内容" disabled>
     </div>
 
     <div class="note" style="margin-top:12px;">
-      指定した日付欄に記念日の内容を表示します。同じ日付に複数設定した場合は、内容を「・」でまとめて表示します。1マスに表示できる記念日名は「・」を含めて合計15文字までです。
+      指定した日付欄に記念日の内容を表示します。うちのこ記念日は同じ日付には複数設定できません。1件につき8文字までです。
     </div>
   </section>
 

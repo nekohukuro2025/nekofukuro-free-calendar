@@ -365,16 +365,9 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                 if cat_labels:
                     label_img = cat_labels.get(cat_event)
                     if label_img is not None:
-                        if matching_anniversaries and holiday_label_img is None:
-                            # うちのこ記念日と同日：
-                            # 猫の記念日名を右上、うちのこ記念日を下へ。
-                            lx = cell_right - label_img.width - 6
-                            ly = cell_top + 5
-                        else:
-                            # 通常日は従来位置。
-                            lx = cell_left + ((cell_right - cell_left) - label_img.width) // 2
-                            ly = cell_bottom - label_img.height - 4
-
+                        # 猫の記念日名は常にセル下部へ配置する。
+                        lx = cell_left + ((cell_right - cell_left) - label_img.width) // 2
+                        ly = cell_bottom - label_img.height - 4
                         canvas.alpha_composite(label_img, (lx, ly))
 
             # うちのこ記念日（ユーザー指定・最大3件）
@@ -400,9 +393,10 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                         if anniversary_catday_labels else None
                     )
                     if label_img is not None:
-                        # 猫の記念日名は上、うちのこ記念日は下。
-                        ax = cell_left + ((cell_right - cell_left) - label_img.width) // 2
-                        ay = cell_bottom - label_img.height - 3
+                        # うちのこ記念日は上、猫の記念日名は下。
+                        # 日付数字と干渉しないよう右上へ配置する。
+                        ax = cell_right - label_img.width - 4
+                        ay = cell_top + 3
                         canvas.alpha_composite(label_img, (ax, ay))
 
                 # 3) 通常日
@@ -546,30 +540,34 @@ async def make_all(event):
             status.innerText = f"うちのこ記念日 {slot} の日付が正しくありません。"
             return
 
-        anniversaries.append({
-            "month": anniv_month,
-            "day": anniv_day,
-            "text": anniv_text[:15],
-        })
-
-    # 同じ日付に複数の記念日を設定した場合、
-    # 「・」を含めて1マス合計15文字まで。
-    anniv_by_date = {}
-    for anniv in anniversaries:
-        key = (anniv["month"], anniv["day"])
-        anniv_by_date.setdefault(key, []).append(anniv["text"])
-
-    for (m, d), texts in anniv_by_date.items():
-        combined = "・".join(texts)
-        if len(combined) > 15:
+        if len(anniv_text) > 8:
             status.innerText = (
-                "同じ日付の記念日の文字数が15文字を超えています。"
-                f"{m}月{d}日：現在 {len(combined)}文字です。"
-                "「・」を含めて15文字以内にしてください。"
+                f"うちのこ記念日 {slot} は8文字以内にしてください。"
+                f"（現在 {len(anniv_text)}文字）"
             )
             status.style.color = "#c62828"
             status.style.fontWeight = "700"
             return
+
+        anniversaries.append({
+            "month": anniv_month,
+            "day": anniv_day,
+            "text": anniv_text[:8],
+        })
+
+    # うちのこ記念日は同じ日付に複数設定できない。
+    seen_dates = set()
+    for anniv in anniversaries:
+        key = (anniv["month"], anniv["day"])
+        if key in seen_dates:
+            status.innerText = (
+                f"{key[0]}月{key[1]}日はすでに別のうちのこ記念日に設定されています。"
+                "それぞれ別の日付を選んでください。"
+            )
+            status.style.color = "#c62828"
+            status.style.fontWeight = "700"
+            return
+        seen_dates.add(key)
 
     photos = window.selectedPhotos
     adjustments = window.photoAdjustments
@@ -614,38 +612,27 @@ async def make_all(event):
     anniversary_catday_labels = {}
 
     if anniversaries:
-        # 同じ日付に複数ある場合は「・」でまとめる。
-        by_date = {}
         for anniv in anniversaries:
             key = (anniv["month"], anniv["day"])
-            by_date.setdefault(key, []).append(anniv["text"])
+            text = anniv["text"][:8]
 
-        for key, texts in by_date.items():
-            combined = "・".join(texts)[:15]
-
-            # 15文字を最大2行（目安8文字＋7文字）に折り返し、
-            # 1マスの横幅をほぼ全部使って、入る範囲で文字を最大化する。
-            wrapped_normal = wrap_anniversary_text(
-                combined, max_chars=8, max_lines=2
-            )
+            # 通常日：8文字を1行で、入る範囲で大きく表示。
             anniversary_labels[key] = await render_browser_label(
-                wrapped_normal, 142, 42, 22, "#b64f68"
+                text, 142, 28, 22, "#b64f68"
             )
 
-            # 祝日と同日も、下段の横幅をほぼ全部使用する。
-            wrapped_holiday = wrap_anniversary_text(
-                combined, max_chars=8, max_lines=2
-            )
+            # 祝日と同日：祝日を上、うちのこ記念日を下。
             anniversary_holiday_labels[key] = await render_browser_label(
-                wrapped_holiday, 142, 42, 22, "#b64f68"
+                text, 142, 28, 22, "#b64f68"
             )
 
-            # 猫記念日と同日も、下段の横幅をほぼ全部使用する。
+            # 猫記念日と同日：
+            # うちのこ記念日は右上で2行まで、猫記念日名を下に残す。
             wrapped_catday = wrap_anniversary_text(
-                combined, max_chars=8, max_lines=2
+                text, max_chars=4, max_lines=2
             )
             anniversary_catday_labels[key] = await render_browser_label(
-                wrapped_catday, 142, 42, 22, "#b64f68"
+                wrapped_catday, 100, 38, 18, "#b64f68"
             )
 
     try:
