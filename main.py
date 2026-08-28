@@ -321,7 +321,6 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                 ]
 
             # 祝日名
-            # うちのこ記念日が同じ日でも、通常時と同じ大きさ・配置で表示する。
             holiday_name = holiday_map.get((month, day))
             holiday_label_img = None
             holiday_label_y = None
@@ -329,8 +328,16 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
             if holiday_name and holiday_labels:
                 holiday_label_img = holiday_labels.get(holiday_name)
                 if holiday_label_img is not None:
-                    lx = cell_left + 6
-                    holiday_label_y = cell_top + 46
+                    if matching_anniversaries:
+                        # うちのこ記念日と同日：
+                        # 祝日名を右上に配置し、下側を記念日用に空ける。
+                        lx = cell_right - holiday_label_img.width - 6
+                        holiday_label_y = cell_top + 5
+                    else:
+                        # 通常日は従来位置。
+                        lx = cell_left + 6
+                        holiday_label_y = cell_top + 46
+
                     canvas.alpha_composite(
                         holiday_label_img,
                         (lx, holiday_label_y)
@@ -358,8 +365,16 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                 if cat_labels:
                     label_img = cat_labels.get(cat_event)
                     if label_img is not None:
-                        lx = cell_left + ((cell_right - cell_left) - label_img.width) // 2
-                        ly = cell_bottom - label_img.height - 4
+                        if matching_anniversaries and holiday_label_img is None:
+                            # うちのこ記念日と同日：
+                            # 猫の記念日名を右上、うちのこ記念日を下へ。
+                            lx = cell_right - label_img.width - 6
+                            ly = cell_top + 5
+                        else:
+                            # 通常日は従来位置。
+                            lx = cell_left + ((cell_right - cell_left) - label_img.width) // 2
+                            ly = cell_bottom - label_img.height - 4
+
                         canvas.alpha_composite(label_img, (lx, ly))
 
             # うちのこ記念日（ユーザー指定・最大3件）
@@ -373,10 +388,9 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                         if anniversary_holiday_labels else None
                     )
                     if label_img is not None:
-                        # 祝日名は通常位置・通常サイズのまま維持。
-                        # 記念日は右上へ折り返して表示する。
-                        ax = cell_right - label_img.width - 4
-                        ay = cell_top + 2
+                        # 祝日名は上、うちのこ記念日は下。
+                        ax = cell_left + ((cell_right - cell_left) - label_img.width) // 2
+                        ay = cell_bottom - label_img.height - 3
                         canvas.alpha_composite(label_img, (ax, ay))
 
                 # 2) 猫記念日と同日
@@ -386,10 +400,9 @@ def make_calendar(img, year, month, x_adj=0, y_adj=0, zoom=100, logo=None, cat_i
                         if anniversary_catday_labels else None
                     )
                     if label_img is not None:
-                        # 猫記念日名は下部のまま維持し、
-                        # うちのこ記念日は右上へ折り返して表示する。
-                        ax = cell_right - label_img.width - 4
-                        ay = cell_top + 2
+                        # 猫の記念日名は上、うちのこ記念日は下。
+                        ax = cell_left + ((cell_right - cell_left) - label_img.width) // 2
+                        ay = cell_bottom - label_img.height - 3
                         canvas.alpha_composite(label_img, (ax, ay))
 
                 # 3) 通常日
@@ -610,28 +623,29 @@ async def make_all(event):
         for key, texts in by_date.items():
             combined = "・".join(texts)[:15]
 
-            # 通常日：最大7文字程度で2行まで折り返し。
+            # 15文字を最大2行（目安8文字＋7文字）に折り返し、
+            # 1マスの横幅をほぼ全部使って、入る範囲で文字を最大化する。
             wrapped_normal = wrap_anniversary_text(
-                combined, max_chars=7, max_lines=2
+                combined, max_chars=8, max_lines=2
             )
             anniversary_labels[key] = await render_browser_label(
-                wrapped_normal, 142, 38, 15, "#b64f68"
+                wrapped_normal, 142, 42, 22, "#b64f68"
             )
 
-            # 祝日と同日：2行で折り返し、文字を大きめに表示。
+            # 祝日と同日も、下段の横幅をほぼ全部使用する。
             wrapped_holiday = wrap_anniversary_text(
                 combined, max_chars=8, max_lines=2
             )
             anniversary_holiday_labels[key] = await render_browser_label(
-                wrapped_holiday, 98, 38, 15, "#b64f68"
+                wrapped_holiday, 142, 42, 22, "#b64f68"
             )
 
-            # 猫記念日と同日も2行で折り返し、文字を大きめに表示。
+            # 猫記念日と同日も、下段の横幅をほぼ全部使用する。
             wrapped_catday = wrap_anniversary_text(
                 combined, max_chars=8, max_lines=2
             )
             anniversary_catday_labels[key] = await render_browser_label(
-                wrapped_catday, 98, 38, 15, "#b64f68"
+                wrapped_catday, 142, 42, 22, "#b64f68"
             )
 
     try:
